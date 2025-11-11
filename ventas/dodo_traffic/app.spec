@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['desktop\\app.py'],
+    ['app.py'],
     pathex=[],
     binaries=[],
     datas=[('Pipeline', 'Pipeline')],
@@ -12,7 +12,8 @@ a = Analysis(
     'selenium.webdriver.support',
     'selenium.webdriver.support.ui',
     'selenium.webdriver.support.expected_conditions',
-     'sqlmodel', 'pydantic', 'SQLAlchemy', 'requests'],  # Expanded list
+     'sqlmodel', 'pydantic',  'requests'],
+    hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -20,7 +21,6 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
-
 pyz = PYZ(a.pure)
 
 exe = EXE(

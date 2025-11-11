@@ -1,0 +1,21 @@
+# Ignorar la carpeta del entorno virtual
+venv/
+
+# Ignorar la carpeta de configuración de Visual Studio Code
+.vscode/
+
+# Ignorar la carpeta de archivos temporales
+temp/
+
+# Ignorar la carpeta de archivos de construcción
+build/
+
+# Ignorar todos los archivos con la extensión .xlsx
+*.xlsx
+
+# Ignorar todos los archivos con la extensión .pdf
+*.pdf
+
+/__pycache__
+*.ipynb
+*.env

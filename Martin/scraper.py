@@ -7,6 +7,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import datetime, logging, requests, time
 
+
 def setup_logging():
     logging.basicConfig(
         level=logging.INFO,
@@ -21,6 +22,7 @@ def setup_logging():
     logger.info("INICIANDO PROCESO DE DESCARGA")
     logger.info("=" * 60)
     return logger
+
 
 def main(
     FECHA_IN_DESDE: str,
@@ -72,7 +74,7 @@ def main(
     logger.info("Ingreso.")
 
     FECHA_RESERVA_INICIO: str = datetime.date(1990, 1, 1).strftime("%Y-%m-%d")
-    FECHA__RESERVA_HOY: str = datetime.datetime.now().date().strftime("%Y-%m-%d")
+    FECHA_RESERVA_HOY: str = datetime.datetime.now().date().strftime("%Y-%m-%d")
 
     headers = {
         "Accept": "application/json, text/javascript, */*; q=0.01",
@@ -85,29 +87,42 @@ def main(
     selenium_cookies = driver.get_cookies()
     cookies = {c["name"]: c["value"] for c in selenium_cookies}
 
-    payload = {
-        "Take": 2500,
-        "Skip": 0,
-        "fec_rvadesde": FECHA_RESERVA_INICIO,
-        "fec_rvahasta": FECHA__RESERVA_HOY,
-        "fec_Saldesde": FECHA_VIAJE_DESDE,
-        "fec_Salhasta": FECHA_VIAJE_HASTA,
-        "fec_Indesde": FECHA_IN_DESDE,
-        "fec_Inhasta": FECHA_IN_HASTA,
-    }
+    all_data: list = []
+    skip = 0
+    while True:
+        try:
+            payload = {
+                "Take": 2500,
+                "Skip": skip,
+                "fec_rvadesde": FECHA_RESERVA_INICIO,
+                "fec_rvahasta": FECHA_RESERVA_HOY,
+                "fec_Saldesde": FECHA_VIAJE_DESDE,
+                "fec_Salhasta": FECHA_VIAJE_HASTA,
+                "fec_Indesde": FECHA_IN_DESDE,
+                "fec_Inhasta": FECHA_IN_HASTA,
+            }
 
-    response = requests.post(
-        URL_DATA_TRAFFIC_COSTORESERVA, headers=headers, cookies=cookies, json=payload
-    )
-    if response.status_code != 200:
-        logger.error(
-            f"Error en la solicitud: {response.status_code} - {response.text}"
-        )
-        return pd.DataFrame(), pd.DataFrame()
-    driver.quit()
-    data: dict = response.json()
-    entities = data["Entities"]
-    df: pd.DataFrame = pd.DataFrame(entities)
+            response = requests.post(
+                URL_DATA_TRAFFIC_COSTORESERVA,
+                headers=headers,
+                cookies=cookies,
+                json=payload,
+            )
+            if response.status_code != 200:
+                logger.error(
+                    f"Error en la solicitud: {response.status_code} - {response.text}"
+                )
+                return pd.DataFrame()
+            data_batch: dict = response.json().get("Entities", [])
+            if not data_batch:
+                logger.info("No hay más datos para descargar. Fin del scraping.")
+                break
+            all_data.extend(data_batch)
+            skip += 2500
+            logger.info(f"Registros descargados hasta ahora: {len(all_data)}")
+        finally:
+            driver.quit()
+    df: pd.DataFrame = pd.DataFrame(all_data)
     logger.info(f"Datos obtenidos: {len(df)} registros.")
     logger.info("Finalizando scraper de costo reserva.")
     logger.info("Filtrando y renombrando columnas...")

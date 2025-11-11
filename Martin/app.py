@@ -25,6 +25,48 @@ class ConsoleRedirect:
         pass
 
 
+def filter_data1(df: pd.DataFrame) -> pd.DataFrame:
+    tipo_rva_list: list = [
+        "PURE TRAVEL GROUP",
+        "DIRECTO TSA INCOMING",
+        "B2B FIT TSA INCOMING",
+        "B2B GRP TSA INCOMING",
+        "FEEL SOUTHAMERICA",
+        "Opcionales OPNS de TRIPS",
+        "OPCIONALES BUENOS AIRES",
+        "OPCIONAL FEEL SOUTHAMERICA",
+    ]
+
+    return df.loc[
+        (df["tip_serv"] == "HO")
+        & (df["estadoRva"].isin(["OP", "CO", "CP"]))
+        & (df["estado"].isin(["OK", "PC", "PP", "SP"]))
+        & (df["Tiporva"].isin(tipo_rva_list))
+    ]
+
+
+def filter_data2(df: pd.DataFrame) -> pd.DataFrame:
+    tipo_rva_list: list = [
+        "PURE TRAVEL GROUP",
+        "DIRECTO TSA INCOMING",
+        "B2B FIT TSA INCOMING",
+        "B2B GRP TSA INCOMING",
+        "FEEL SOUTHAMERICA",
+        "DIRECTO TSA VIAJES",
+        "B2B FIT TSA VIAJES",
+        "B2B GRP TSA VIAJES",
+        "OPCIONALES OPNS DE TRIPS",
+        "OPCIONALES BUENOS AIRES",
+        "OPCIONAL FEEL SOUTHAMERICA",
+    ]
+    return df.loc[
+        (df["tip_serv"] == "HO")
+        & (df["estadoRva"].isin(["OP", "CO", "CP"]))
+        & (df["estado"].isin(["OK", "PC", "PP", "SP"]))
+        & (df["Tiporva"].isin(tipo_rva_list))
+    ]
+
+
 # -------------------------------------------------------
 # Función para correr ETL
 # -------------------------------------------------------
@@ -55,21 +97,131 @@ def run_traffic():
     data: pd.DataFrame = scraper_main(
         fecha_in_desde, fecha_in_hasta, fecha_viaje_desde, fecha_viaje_hasta
     )
-    data_ho = data.loc[data["tip_serv"] == "HO"]
-    rdo = (
-        data_ho.groupby("nombre_proveedor")["vts_habitacion"]
+
+    def filter_data1(df: pd.DataFrame) -> pd.DataFrame:
+        tipo_rva_list: list = [
+            "PURE TRAVEL GROUP",
+            "DIRECTO TSA INCOMING",
+            "B2B FIT TSA INCOMING",
+            "B2B GRP TSA INCOMING",
+            "FEEL SOUTHAMERICA",
+            "OPCIONALES OPNS DE TRIPS",
+            "OPCIONALES BUENOS AIRES",
+            "OPCIONAL FEEL SOUTHAMERICA",
+        ]
+
+        return df.loc[
+            (df["tip_serv"] == "HO")
+            & (df["estadoRva"].isin(["OP", "CO", "CP"]))
+            & (df["estado"].isin(["OK", "PC", "PP", "SP"]))
+            & (df["Tiporva"].isin(tipo_rva_list))
+        ]
+
+    def filter_data2(df: pd.DataFrame) -> pd.DataFrame:
+        tipo_rva_list: list = [
+            "PURE TRAVEL GROUP",
+            "DIRECTO TSA INCOMING",
+            "B2B FIT TSA INCOMING",
+            "B2B GRP TSA INCOMING",
+            "FEEL SOUTHAMERICA",
+            "DIRECTO TSA VIAJES",
+            "B2B FIT TSA VIAJES",
+            "B2B GRP TSA VIAJES",
+            "OPCIONALES OPNS DE TRIPS",
+            "OPCIONALES BUENOS AIRES",
+            "OPCIONAL FEEL SOUTHAMERICA",
+        ]
+        return df.loc[
+            (df["tip_serv"] == "HO")
+            & (df["estadoRva"].isin(["OP", "CO", "CP"]))
+            & (df["estado"].isin(["OK", "PC", "PP", "SP"]))
+            & (df["Tiporva"].isin(tipo_rva_list))
+        ]
+
+    def filter_data3(df: pd.DataFrame) -> pd.DataFrame:
+        tipo_rva_list: list = [
+            "B2B GRP TSA INCOMING",
+        ]
+        return df.loc[
+            (df["tip_serv"] == "HO")
+            & (df["estadoRva"].isin(["DB", "CX", "BL", "XC"]))
+            & (df["estado"].isin(["DB"]))
+            & (df["Tiporva"].isin(tipo_rva_list))
+        ]
+
+    def filter_data4(df: pd.DataFrame) -> pd.DataFrame:
+        tipo_rva_list: list = [
+            "FEEL SOUTHAMERICA",
+            "B2B FIT TSA INCOMING",
+        ]
+        return df.loc[
+            (df["tip_serv"] == "HO")
+            & (df["estadoRva"].isin(["DB", "CX", "BL", "XC", "OP", "CP", "CO"]))
+            & (df["estado"].isin(["DB", "CX"]))
+            & (df["Tiporva"].isin(tipo_rva_list))
+        ]
+
+    data["tip_serv"] = data["tip_serv"].str.upper().str.strip()
+    data["estado"] = data["estado"].str.upper().str.strip()
+    data["estadoRva"] = data["estadoRva"].str.upper().str.strip()
+    data["Tiporva"] = data["Tiporva"].str.upper().str.strip()
+    date_list: list = [
+        "FechaViaje",
+        "fecha_in",
+        "fecha_out",
+    ]
+    for i in date_list:
+        data[i] = pd.to_datetime(data[i], errors="coerce").dt.date
+
+    data1: pd.DataFrame = filter_data1(data)
+    data2: pd.DataFrame = filter_data2(data)
+    data3: pd.DataFrame = filter_data3(data)
+    data4: pd.DataFrame = filter_data4(data)
+
+    rdo1 = (
+        data1.groupby(["nombre_proveedor", "nom_oper"])["vts_habitacion"]
         .sum()
         .to_frame()
         .reset_index()
     )
+    rdo2 = (
+        data2.groupby(["nombre_proveedor", "nom_oper"])["vts_habitacion"]
+        .sum()
+        .to_frame()
+        .reset_index()
+    )
+    iatas: str = "CiudadesList_20251107_151611.xlsx"
+    df_iatas = pd.read_excel(iatas)
+
+    destino = data1.groupby("destino")["vts_habitacion"].sum().to_frame().reset_index()
+    resultado = destino.merge(
+        df_iatas[["Codigociudad", "Nombreciudad"]],
+        left_on="destino",  # En df1
+        right_on="Codigociudad",  # En df_iatas
+        how="left",
+    )
+    resultado.drop(columns=["Codigociudad"], inplace=True)
+
+    df1 = filter_data3(data3)
+    df1.groupby(["nombre_proveedor", "nom_oper"])[
+        "vts_habitacion"
+    ].sum().to_frame().reset_index()
+
+    df2 = filter_data4(data4)
+    df2.groupby(["nombre_proveedor", "nom_oper"])[
+        "vts_habitacion"
+    ].sum().to_frame().reset_index()
+
     nombre_archivo = "mis_datos.xlsx"
 
     # Usar ExcelWriter para escribir en múltiples hojas
     with pd.ExcelWriter(nombre_archivo) as writer:
         # Escribir el primer DataFrame en la hoja 'Hoja1'
-        rdo.to_excel(writer, sheet_name="Agrupacion", index=False)
-
-        data_ho.to_excel(writer, sheet_name="Filtrado_HO", index=False)
+        rdo1.to_excel(writer, sheet_name="SIN TSA Viajes", index=False)
+        rdo2.to_excel(writer, sheet_name="CON TSA Viajes", index=False)
+        resultado.to_excel(writer, sheet_name="Destino", index=False)
+        df1.to_excel(writer, sheet_name="RN Grupos Desbloqueadas", index=False)
+        df2.to_excel(writer, sheet_name="RN FIT Canceladas", index=False)
         data.to_excel(writer, sheet_name="Completo", index=False)
 
     status_label.config(
